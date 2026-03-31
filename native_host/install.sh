@@ -203,18 +203,5 @@ Path=$PROJECT_DIR
 EOF
     chmod +x "$DESKTOP_ENTRY"
     echo "🖥️  Desktop shortcut created: $DESKTOP_ENTRY"
-
-    echo ""
-    echo "═══════════════════════════════════════"
-    echo "  ✅ Installation complete"
-    echo ""
-    echo "  Next steps:"
-    echo "  1. Load the extension in your browser:"
-    echo "     chrome://extensions → Developer mode → Load unpacked"
-    echo "     Select the directory: $PROJECT_DIR/browser_extension/"
-    echo ""
-    echo "  Communication has been automatically linked via static ID."
-    echo "  You can now launch PyDM from your Linux app menu!"
-    echo "═══════════════════════════════════════"
 fi
 echo ""
