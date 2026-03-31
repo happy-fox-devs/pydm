@@ -88,6 +88,6 @@ PyDM Main App (PyQt6 / QEventLoop)
         Browser Extension (WebExtension Manifest V3)
 ```
 
-## 📄 License & Author
+## 📄 License
 
 This project is licensed under the [MIT License](LICENSE).
