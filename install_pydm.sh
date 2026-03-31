@@ -11,19 +11,30 @@ echo -e "\e[1;36m==================================================\e[0m"
 
 INSTALL_DIR="$HOME/.local/share/pydm"
 DESKTOP_ZIP="$USER_DESKTOP/pydm_extension.zip"
+IS_UPDATE=false
 
-echo -e "\n\e[1;34m[1/5] Checking system dependencies...\e[0m"
-if command -v apt-get >/dev/null; then
-    echo "Ubuntu/Debian detected. Asking for permission to install aria2, ffmpeg, python3-venv..."
-    sudo apt-get update && sudo apt-get install -y aria2 ffmpeg python3-venv python3-pip xdg-utils
-elif command -v pacman >/dev/null; then
-    echo "Arch Linux detected. Asking for permission to install aria2, ffmpeg, python..."
-    sudo pacman -S --needed --noconfirm aria2 ffmpeg python xdg-utils
-elif command -v dnf >/dev/null; then
-    echo "Fedora detected. Asking for permission to install aria2, ffmpeg..."
-    sudo dnf install -y aria2 ffmpeg python3 xdg-utils
+if [ -d "$INSTALL_DIR" ] && [ -f "$INSTALL_DIR/pydm/main.py" ]; then
+    IS_UPDATE=true
+    echo -e "\e[1;36m               (Update Mode Detected)\e[0m"
+fi
+echo -e "\e[1;36m==================================================\e[0m"
+
+if [ "$IS_UPDATE" = false ]; then
+    echo -e "\n\e[1;34m[1/5] Checking system dependencies...\e[0m"
+    if command -v apt-get >/dev/null; then
+        echo "Ubuntu/Debian detected. Asking for permission to install aria2, ffmpeg, python3-venv..."
+        sudo apt-get update && sudo apt-get install -y aria2 ffmpeg python3-venv python3-pip xdg-utils
+    elif command -v pacman >/dev/null; then
+        echo "Arch Linux detected. Asking for permission to install aria2, ffmpeg, python..."
+        sudo pacman -S --needed --noconfirm aria2 ffmpeg python xdg-utils
+    elif command -v dnf >/dev/null; then
+        echo "Fedora detected. Asking for permission to install aria2, ffmpeg..."
+        sudo dnf install -y aria2 ffmpeg python3 xdg-utils
+    else
+        echo -e "\e[1;33mWarning: Package manager not found. Please manually ensure aria2, ffmpeg, and python3-venv are installed.\e[0m"
+    fi
 else
-    echo -e "\e[1;33mWarning: Package manager not found. Please manually ensure aria2, ffmpeg, and python3-venv are installed.\e[0m"
+    echo -e "\n\e[1;34m[1/5] Skipping system dependencies (Update Mode)...\e[0m"
 fi
 
 echo -e "\n\e[1;34m[2/5] Deploying PyDM to $INSTALL_DIR...\e[0m"
@@ -34,9 +45,9 @@ if [ -f "./pydm/main.py" ]; then
 else
     echo "Fetching from Git repository..."
     if [ -d "$INSTALL_DIR/.git" ]; then
-        cd "$INSTALL_DIR" && git pull && cd -
+        cd "$INSTALL_DIR" && git pull origin main && cd -
     else
-        git clone https://github.com/adrian/pydm.git "$INSTALL_DIR"
+        git clone https://github.com/happy-fox-devs/pydm.git "$INSTALL_DIR"
     fi
 fi
 
@@ -62,7 +73,11 @@ else
 fi
 
 echo -e "\n\e[1;32m==================================================\e[0m"
-echo -e "\e[1;32m       PyDM Installed Successfully! 🎉\e[0m"
+if [ "$IS_UPDATE" = true ]; then
+    echo -e "\e[1;32m       PyDM Updated Successfully! 🎉\e[0m"
+else
+    echo -e "\e[1;32m       PyDM Installed Successfully! 🎉\e[0m"
+fi
 echo -e "\e[1;32m==================================================\e[0m"
 echo -e "\e[1;37m"
 echo "> PyDM has been installed to your local user directory."
