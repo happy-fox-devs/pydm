@@ -1,0 +1,41 @@
+{
+  "manifest_version": 3,
+  "name": "PyDM — Download Manager",
+  "version": "0.1.0",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAsT5jWx3aLYu96mh+Czr1+W9AubN1dzHNY4HHGf1u5r2+wM5Mx/0KFEcuuBhP+l65XqJY1r51TuCSlJw9gwtC+vNWB3+FVO0+v3E1r282RvoaJ0ZmRMuFQXOW/nK51pAdfNRhWgItQnyKhV2V5Zq1sh3JoetlMAhSmO10ix7Ytkmsa7bCRI2Z9zdsX7ZzCmRuZ+qWrjJrSwVA2twvaqThPFwoF8uw/JE5iVvuY/hU27NKrp+Tse+gmYgV3XfcZ2Md0FRLHv+JwDABmj0MzCwBT7JVYvGxEXRl7FRZoEEeDSMB6CTXlKbIZT5SsVVvsynmeAlewYWlRUPqGxpu9UVkhwIDAQAB",
+  "description": "Captura descargas del navegador y las redirige a PyDM",
+  "permissions": [
+    "downloads",
+    "nativeMessaging",
+    "storage",
+    "cookies",
+    "tabs"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "css": ["content.css"],
+      "js": ["content.js"],
+      "run_at": "document_end"
+    }
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

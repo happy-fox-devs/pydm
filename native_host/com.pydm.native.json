@@ -1,0 +1,7 @@
+{
+  "name": "com.pydm.native",
+  "description": "PyDM Native Messaging Host — Bridges browser downloads to PyDM",
+  "path": "REPLACE_WITH_ACTUAL_PATH",
+  "type": "stdio",
+  "allowed_origins": []
+}
