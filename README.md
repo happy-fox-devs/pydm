@@ -25,8 +25,14 @@ We've built a one-click deployment script designed to seamlessly install PyDM na
 
 ### Method 1: Master Installer (Recommended)
 
-Simply open your terminal and run the interactive setup:
+Simply open your terminal and run the interactive setup using either `wget` or `curl`:
 
+**Using curl:**
+```bash
+curl -fsSL https://raw.githubusercontent.com/happy-fox-devs/pydm/main/install_pydm.sh | bash
+```
+
+**Using wget:**
 ```bash
 wget -qO- https://raw.githubusercontent.com/happy-fox-devs/pydm/main/install_pydm.sh | bash
 ```
