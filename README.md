@@ -90,5 +90,4 @@ PyDM Main App (PyQt6 / QEventLoop)
 
 ## 📄 License & Author
 
-**Author**: Adrian Mauricio Arandia Urrea  
 This project is licensed under the [MIT License](LICENSE).
