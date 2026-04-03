@@ -2,6 +2,8 @@
 
 import logging
 import os
+import sys
+import subprocess
 
 from PyQt6.QtCore import Qt, QSize, QTimer
 from PyQt6.QtGui import QAction, QIcon, QFont, QColor
@@ -27,6 +29,7 @@ from pydm.aria2_manager import Aria2Manager
 from pydm.download_monitor import DownloadMonitor, DownloadInfo
 from pydm.ui.add_download_dialog import AddDownloadDialog
 from pydm.ui.video_extraction_dialog import VideoExtractionDialog
+from pydm.ui.settings_dialog import SettingsDialog
 from pydm.ui.styles import STATUS_COLORS, STATUS_TEXT, COLORS
 from pydm.utils.helpers import format_size, format_speed, format_eta, truncate_filename
 
@@ -130,6 +133,18 @@ class MainWindow(QMainWindow):
         self.action_clear.setToolTip("Clear completed downloads")
         self.action_clear.triggered.connect(self._on_clear_completed)
         toolbar.addAction(self.action_clear)
+
+        # Spacer to push Settings to the right
+        spacer = QWidget()
+        from PyQt6.QtWidgets import QSizePolicy
+        spacer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        toolbar.addWidget(spacer)
+
+        # Settings
+        self.action_settings = QAction("⚙  Settings", self)
+        self.action_settings.setToolTip("Open application settings")
+        self.action_settings.triggered.connect(self._on_settings)
+        toolbar.addAction(self.action_settings)
 
     def _setup_table(self):
         """Create the download list table."""
@@ -580,16 +595,27 @@ class MainWindow(QMainWindow):
 
     def _open_download_folder(self, gid: str):
         """Open the download folder in the file manager."""
+        path = self.aria2_manager.download_dir
         try:
             downloads = self.aria2_manager.get_downloads()
             for dl in downloads:
                 if dl.gid == gid:
                     dl_dir = dl.dir
-                    path = str(dl_dir) if dl_dir else self.aria2_manager.download_dir
-                    os.system(f'xdg-open "{path}" &')
-                    return
+                    path = str(dl_dir) if dl_dir else path
+                    break
         except Exception:
-            os.system(f'xdg-open "{self.aria2_manager.download_dir}" &')
+            pass
+        self._open_folder(path)
+
+    @staticmethod
+    def _open_folder(path: str):
+        """Open a folder in the native file manager."""
+        if sys.platform == "win32":
+            os.startfile(path)
+        elif sys.platform == "darwin":
+            subprocess.Popen(["open", path])
+        else:
+            subprocess.Popen(["xdg-open", path])
 
     # ------------------------------------------------------------------
     # Tray icon
@@ -615,8 +641,10 @@ class MainWindow(QMainWindow):
     # ------------------------------------------------------------------
 
     def closeEvent(self, event):
-        """Minimize to tray instead of closing, if tray is available."""
-        if self._tray and self._tray.isVisible():
+        """Handle window close based on user preference."""
+        close_behavior = self.settings.get("close_behavior", "minimize_to_tray")
+
+        if close_behavior == "minimize_to_tray" and self._tray and self._tray.isVisible():
             self.hide()
             self._tray.showMessage(
                 "PyDM",
@@ -628,6 +656,11 @@ class MainWindow(QMainWindow):
         else:
             self._cleanup()
             event.accept()
+
+    def _on_settings(self):
+        """Open the settings dialog."""
+        dialog = SettingsDialog(self.settings, parent=self)
+        dialog.exec()
 
     def _cleanup(self):
         """Clean up resources before quitting."""

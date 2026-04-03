@@ -438,6 +438,69 @@ QMenu#trayMenu {{
     border: 1px solid {COLORS["border"]};
     border-radius: 8px;
 }}
+
+/* ========================================
+   CHECKBOX
+   ======================================== */
+QCheckBox {{
+    color: {COLORS["text_primary"]};
+    spacing: 8px;
+    font-size: 13px;
+}}
+
+QCheckBox::indicator {{
+    width: 18px;
+    height: 18px;
+    border: 2px solid {COLORS["border_light"]};
+    border-radius: 4px;
+    background-color: {COLORS["bg_secondary"]};
+}}
+
+QCheckBox::indicator:hover {{
+    border-color: {COLORS["accent"]};
+}}
+
+QCheckBox::indicator:checked {{
+    background-color: {COLORS["accent_dark"]};
+    border-color: {COLORS["accent"]};
+    image: none;
+}}
+
+/* ========================================
+   COMBOBOX
+   ======================================== */
+QComboBox {{
+    background-color: {COLORS["bg_secondary"]};
+    color: {COLORS["text_primary"]};
+    border: 1px solid {COLORS["border"]};
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 13px;
+    min-width: 180px;
+}}
+
+QComboBox:hover {{
+    border-color: {COLORS["border_light"]};
+}}
+
+QComboBox:focus {{
+    border-color: {COLORS["accent"]};
+}}
+
+QComboBox::drop-down {{
+    border: none;
+    width: 24px;
+}}
+
+QComboBox QAbstractItemView {{
+    background-color: {COLORS["bg_secondary"]};
+    color: {COLORS["text_primary"]};
+    border: 1px solid {COLORS["border"]};
+    border-radius: 6px;
+    selection-background-color: {COLORS["bg_tertiary"]};
+    selection-color: {COLORS["accent"]};
+    padding: 4px;
+}}
 """
 
 

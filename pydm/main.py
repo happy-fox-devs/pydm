@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""PyDM — Python Download Manager for Linux.
+"""PyDM — Python Download Manager.
 
 Entry point for the application.
 """
