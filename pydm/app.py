@@ -9,7 +9,7 @@ from PyQt6.QtCore import Qt, QTimer, QObject
 from PyQt6.QtGui import QFont, QFontDatabase
 
 from pydm import __version__, __app_name__
-from pydm.aria2_manager import Aria2Manager
+from pydm.aria2_manager import Aria2Manager, IS_WINDOWS
 from pydm.ytdlp_manager import YtDlpManager
 from pydm.ui.main_window import MainWindow
 from pydm.ui.styles import MAIN_STYLESHEET
@@ -57,15 +57,23 @@ class PyDMApp(QObject):
         """Start the application. Returns exit code."""
         # Start aria2c daemon
         if not self.aria2_manager.start_daemon():
-            QMessageBox.critical(
-                None,
-                "Error — PyDM",
-                "No se pudo iniciar el daemon aria2c.\n\n"
-                "Asegúrate de tener aria2 instalado:\n"
-                "  • Arch: sudo pacman -S aria2\n"
-                "  • Debian/Ubuntu: sudo apt install aria2\n"
-                "  • Fedora: sudo dnf install aria2",
-            )
+            if IS_WINDOWS:
+                install_hint = (
+                    "No se pudo iniciar el daemon aria2c.\n\n"
+                    "Asegúrate de tener aria2c en el PATH o instálalo:\n"
+                    "  • winget install aria2\n"
+                    "  • scoop install aria2\n"
+                    "  • Descarga desde https://github.com/aria2/aria2/releases"
+                )
+            else:
+                install_hint = (
+                    "No se pudo iniciar el daemon aria2c.\n\n"
+                    "Asegúrate de tener aria2 instalado:\n"
+                    "  • Arch: sudo pacman -S aria2\n"
+                    "  • Debian/Ubuntu: sudo apt install aria2\n"
+                    "  • Fedora: sudo dnf install aria2"
+                )
+            QMessageBox.critical(None, "Error — PyDM", install_hint)
             return 1
 
         # Create main window

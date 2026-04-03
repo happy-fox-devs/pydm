@@ -1,5 +1,6 @@
 import json
 import os
+import sys
 import logging
 
 logger = logging.getLogger(__name__)
@@ -8,7 +9,11 @@ class SettingsManager:
     """Manages persistent settings for PyDM."""
 
     def __init__(self):
-        self.config_dir = os.path.expanduser("~/.config/pydm")
+        if sys.platform == "win32":
+            base = os.environ.get("APPDATA", os.path.expanduser("~"))
+            self.config_dir = os.path.join(base, "pydm")
+        else:
+            self.config_dir = os.path.expanduser("~/.config/pydm")
         self.config_file = os.path.join(self.config_dir, "settings.json")
         self._settings = self._load()
 

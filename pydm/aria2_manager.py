@@ -5,14 +5,18 @@ a high-level API for managing downloads via aria2p.
 """
 
 import subprocess
+import sys
 import time
 import os
 import signal
+import platform
 import logging
 
 import aria2p
 
 logger = logging.getLogger(__name__)
+
+IS_WINDOWS = sys.platform == "win32"
 
 # Default aria2c configuration
 DEFAULT_RPC_PORT = 6800
@@ -22,22 +26,42 @@ DEFAULT_SPLIT = 16
 
 
 def _get_default_download_dir() -> str:
-    """Detect the system's download directory using xdg-user-dir.
+    """Detect the system's download directory.
 
-    Respects the locale, so on Spanish systems it returns ~/Descargas.
-    Falls back to ~/Downloads if xdg-user-dir is not available.
+    On Windows, uses SHGetKnownFolderPath via ctypes.
+    On Linux, uses xdg-user-dir (respects locale, e.g. ~/Descargas).
+    Falls back to ~/Downloads on all platforms.
     """
-    try:
-        result = subprocess.run(
-            ["xdg-user-dir", "DOWNLOAD"],
-            capture_output=True,
-            text=True,
-            timeout=3,
-        )
-        if result.returncode == 0 and result.stdout.strip():
-            return result.stdout.strip()
-    except (FileNotFoundError, subprocess.TimeoutExpired):
-        pass
+    if IS_WINDOWS:
+        try:
+            import ctypes
+            from ctypes import wintypes
+            # FOLDERID_Downloads = {374DE290-123F-4565-9164-39C4925E467B}
+            FOLDERID_Downloads = ctypes.c_char_p(
+                b"\x90\xe2\x4d\x37\x3f\x12\x65\x45\x91\x64\x39\xc4\x92\x5e\x46\x7b"
+            )
+            buf = ctypes.c_wchar_p()
+            ctypes.windll.shell32.SHGetKnownFolderPath(
+                FOLDERID_Downloads, 0, None, ctypes.byref(buf)
+            )
+            if buf.value:
+                path = buf.value
+                ctypes.windll.ole32.CoTaskMemFree(buf)
+                return path
+        except Exception:
+            pass
+    else:
+        try:
+            result = subprocess.run(
+                ["xdg-user-dir", "DOWNLOAD"],
+                capture_output=True,
+                text=True,
+                timeout=3,
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                return result.stdout.strip()
+        except (FileNotFoundError, subprocess.TimeoutExpired):
+            pass
     return os.path.expanduser("~/Downloads")
 
 
@@ -131,6 +155,9 @@ class Aria2Manager:
         # Ensure download directory exists
         os.makedirs(self.download_dir, exist_ok=True)
 
+        # falloc is not supported on NTFS (Windows)
+        file_alloc = "none" if IS_WINDOWS else "falloc"
+
         cmd = [
             "aria2c",
             "--enable-rpc",
@@ -145,7 +172,7 @@ class Aria2Manager:
             "--continue=true",
             "--auto-file-renaming=true",
             "--allow-overwrite=false",
-            "--file-allocation=falloc",
+            f"--file-allocation={file_alloc}",
             "--summary-interval=0",
             "--disk-cache=64M",
             "--max-overall-download-limit=0",
@@ -153,11 +180,15 @@ class Aria2Manager:
         ]
 
         try:
-            self._process = subprocess.Popen(
-                cmd,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.PIPE,
-            )
+            popen_kwargs = {
+                "stdout": subprocess.DEVNULL,
+                "stderr": subprocess.PIPE,
+            }
+            # Hide console window on Windows
+            if IS_WINDOWS:
+                popen_kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW
+
+            self._process = subprocess.Popen(cmd, **popen_kwargs)
             # Wait for daemon to be ready
             for _ in range(20):
                 time.sleep(0.25)
@@ -180,7 +211,7 @@ class Aria2Manager:
         """Stop the aria2c daemon process."""
         if self._process is not None:
             try:
-                self._process.send_signal(signal.SIGTERM)
+                self._process.terminate()
                 self._process.wait(timeout=5)
             except subprocess.TimeoutExpired:
                 self._process.kill()
@@ -213,8 +244,13 @@ class Aria2Manager:
         Returns:
             aria2p.Download object or None on failure.
         """
+        if IS_WINDOWS:
+            ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+        else:
+            ua = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+
         options = {
-            "user-agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+            "user-agent": ua,
         }
 
         # Determine filename: use provided, extract from URL, or generate fallback
