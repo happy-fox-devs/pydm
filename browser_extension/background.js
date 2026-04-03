@@ -131,9 +131,22 @@ function shouldCaptureUrl(url, filename) {
   // Skip ignored URL patterns
   if (settings.ignorePatterns.some((p) => url.startsWith(p))) return false;
 
-  // Skip duplicate URLs within 2 seconds
+  // If PyDM is not running, let the browser download it natively
+  if (!pydmRunning) return false;
+
+  // Smart Fallback: 
+  // - If elapsed < 2s, it's the browser firing multiple events (ignore).
+  // - If elapsed < 120s, the user likely clicked the link again because 
+  //   PyDM failed or was cancelled. Let the browser handle it.
   const now = Date.now();
-  if (recentUrls.has(url) && (now - recentUrls.get(url)) < 2000) return false;
+  if (recentUrls.has(url)) {
+    const elapsed = now - recentUrls.get(url);
+    if (elapsed < 2000) return false;
+    if (elapsed < 120000) {
+      console.log("PyDM: Smart bypass triggered (user retrying download). Falling back to browser.");
+      return false;
+    }
+  }
 
   // If interceptAll, capture everything
   if (settings.interceptAll) return true;

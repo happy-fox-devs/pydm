@@ -364,9 +364,16 @@ class Aria2Manager:
             parts = path.rstrip("/").split("/")
             last_part = parts[-1] if parts else ""
 
+            # Reject if it looks like a URL or scheme prefix instead of a filename
+            if last_part.startswith("http://") or last_part.startswith("https://"):
+                last_part = ""
+
             # Check if it looks like a real filename (has extension, reasonable length)
             if last_part and "." in last_part and len(last_part) < 200:
-                return last_part
+                # Clean up common URL artifacts
+                last_part = last_part.split("?")[0].split("#")[0]
+                if last_part:
+                    return last_part
 
             # Fallback: generate a timestamped name
             timestamp = _time.strftime("%Y%m%d_%H%M%S")

@@ -54,6 +54,7 @@ class MainWindow(QMainWindow):
         self.ytdlp_manager = ytdlp_manager
         self.settings = settings
         self._download_rows: dict[str, int] = {}  # GID -> row index
+        self._previous_states: dict[str, str] = {}  # GID -> status string
 
         self.setWindowTitle("PyDM — Download Manager")
         self.setMinimumSize(900, 550)
@@ -267,6 +268,16 @@ class MainWindow(QMainWindow):
                 self.table.insertRow(row)
                 self._download_rows[info.gid] = row
                 self._create_row(row, info)
+
+            # Auto-fallback to browser if download fails
+            old_status = self._previous_states.get(info.gid, "")
+            if info.status == "error" and old_status != "error":
+                if info.url and info.url.startswith("http"):
+                    logger.info(f"Download error, auto-fallback to browser: {info.url}")
+                    import webbrowser
+                    webbrowser.open(info.url)
+            
+            self._previous_states[info.gid] = info.status
 
         # Remove rows for downloads that no longer exist
         gids_to_remove = set(self._download_rows.keys()) - current_gids
@@ -654,8 +665,9 @@ class MainWindow(QMainWindow):
             )
             event.ignore()
         else:
-            self._cleanup()
-            event.accept()
+            # Fully quit the app (not just close the window)
+            event.ignore()
+            self._quit_app()
 
     def _on_settings(self):
         """Open the settings dialog."""

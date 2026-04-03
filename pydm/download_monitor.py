@@ -20,6 +20,7 @@ class DownloadInfo:
 
     gid: str = ""
     name: str = ""
+    url: str = ""
     total_size: int = 0
     completed_size: int = 0
     progress: float = 0.0
@@ -66,9 +67,29 @@ class DownloadMonitor(QThread):
                             remaining = dl.total_length - dl.completed_length
                             eta = remaining / dl.download_speed
 
+                        # Extract a reasonable display name
+                        display_name = dl.name or ""
+                        # If aria2 returned something like "https:" (just the scheme),
+                        # try to get a better name from the URI
+                        if not display_name or display_name.endswith(":") or len(display_name) < 3:
+                            try:
+                                from urllib.parse import urlparse, unquote
+                                uris = dl.files[0].uris if dl.files else []
+                                if uris:
+                                    uri = uris[0].get("uri", "") if isinstance(uris[0], dict) else str(uris[0])
+                                    parsed = urlparse(uri)
+                                    path_name = unquote(parsed.path.rstrip("/").split("/")[-1])
+                                    if path_name and "." in path_name:
+                                        display_name = path_name
+                            except Exception:
+                                pass
+                        if not display_name or display_name.endswith(":"):
+                            display_name = "Unknown"
+
                         info = DownloadInfo(
                             gid=dl.gid,
-                            name=dl.name or "Unknown",
+                            name=display_name,
+                            url=uri,
                             total_size=dl.total_length,
                             completed_size=dl.completed_length,
                             progress=dl.progress,
