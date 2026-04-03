@@ -96,21 +96,40 @@ function scheduleTooltipHide() {
   }, 1000); // Wait 1s before hiding allowing mouse to reach the dialog
 }
 
+// Track whether PyDM is reachable
+let pydmConnected = true;
+
+// Periodically check connection (every 15 seconds)
+function checkPydmConnection() {
+  try {
+    chrome.runtime.sendMessage({ type: "testConnection" }, (response) => {
+      pydmConnected = !!(response && response.connected);
+    });
+  } catch (e) {
+    pydmConnected = false;
+  }
+}
+checkPydmConnection();
+setInterval(checkPydmConnection, 15000);
+
 // Global mouse tracker to see if we hover a video
 document.addEventListener("mousemove", (e) => {
+  // Don't show tooltip if PyDM is not running
+  if (!pydmConnected) return;
+
   const element = document.elementFromPoint(e.clientX, e.clientY);
-  
+
   if (element && element.tagName === "VIDEO") {
     currentVideo = element;
     const rect = element.getBoundingClientRect();
-    
+
     // Only show if the video is of sensible size (not a tiny tracking pixel)
     if (rect.width > 200 && rect.height > 100) {
       showTooltip(rect);
       return;
     }
   }
-  
+
   // If we move mouse OUTSIDE tooltip and OUTSIDE video, start hide schedule.
   // Unless we are currently over the tooltip itself
   if (tooltipDiv && !tooltipDiv.contains(e.target)) {

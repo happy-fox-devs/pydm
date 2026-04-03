@@ -39,6 +39,7 @@ const DEFAULT_SETTINGS = {
 
 let settings = { ...DEFAULT_SETTINGS };
 let nativePort = null;
+let pydmRunning = false;
 
 // -------------------------------------------------------------------
 // Settings
@@ -69,29 +70,38 @@ function connectNative() {
     nativePort = chrome.runtime.connectNative(NATIVE_HOST_NAME);
     nativePort.onMessage.addListener((msg) => {
       console.log("PyDM: Response:", msg);
+      pydmRunning = true;
     });
     nativePort.onDisconnect.addListener(() => {
       console.log("PyDM: Disconnected", chrome.runtime.lastError?.message || "");
       nativePort = null;
+      pydmRunning = false;
     });
+    pydmRunning = true;
     return true;
   } catch (e) {
     console.error("PyDM: Connect failed:", e);
     nativePort = null;
+    pydmRunning = false;
     return false;
   }
 }
 
 function sendToNative(message) {
   if (!nativePort) {
-    if (!connectNative()) return false;
+    if (!connectNative()) {
+      pydmRunning = false;
+      return false;
+    }
   }
   try {
     nativePort.postMessage(message);
+    pydmRunning = true;
     return true;
   } catch (e) {
     console.error("PyDM: Send error:", e);
     nativePort = null;
+    pydmRunning = false;
     return false;
   }
 }
@@ -231,12 +241,13 @@ chrome.downloads.onChanged.addListener((delta) => {
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type === "getSettings") {
-    sendResponse({ settings });
+    sendResponse({ settings, pydmRunning });
   } else if (msg.type === "updateSettings") {
     saveSettings(msg.settings).then(() => sendResponse({ ok: true }));
     return true;
   } else if (msg.type === "testConnection") {
     const connected = sendToNative({ action: "ping" });
+    pydmRunning = connected;
     sendResponse({ connected });
   } else if (msg.action === "extract_video") {
     // Forward the video extraction request to PyDM
