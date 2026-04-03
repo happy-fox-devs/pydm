@@ -5,7 +5,7 @@
 <h1 align="center">PyDM - Python Download Manager</h1>
 
 <p align="center">
-  <em>A modern, blazing-fast, IDM-like download manager for Linux.</em>
+  <em>A modern, blazing-fast, IDM-like download manager for Linux & Windows.</em>
 </p>
 
 ## ✨ Features
@@ -21,9 +21,9 @@
 
 ## 🚀 Installation & Deployment
 
-We've built a one-click deployment script designed to seamlessly install PyDM natively on your Linux distribution (Arch, Ubuntu/Debian, Fedora). 
+### Linux
 
-### Method 1: Master Installer (Recommended)
+We've built a one-click deployment script designed to seamlessly install PyDM natively on your Linux distribution (Arch, Ubuntu/Debian, Fedora). 
 
 Simply open your terminal and run the interactive setup using either `wget` or `curl`:
 
@@ -45,7 +45,23 @@ wget -qO- https://raw.githubusercontent.com/happy-fox-devs/pydm/main/install_pyd
 5. Adds a high-resolution PyDM shortcut to your Linux Applications Menu.
 6. Packages the browser extension as a `.zip` file into your Desktop for easy loading.
 
-### 2. Connect the Browser
+### Windows
+
+Open **PowerShell** and run:
+
+```powershell
+irm https://raw.githubusercontent.com/happy-fox-devs/pydm/main/install_pydm.ps1 | iex
+```
+
+**What the installer does:**
+1. Check if `aria2c` and `ffmpeg` binaries are installed, if not, download them to `%LOCALAPPDATA%\pydm\bin\`.
+2. Clones the repository to `%LOCALAPPDATA%\pydm`.
+3. Creates an isolated Python virtual environment.
+4. Registers Native Messaging hooks in the Windows Registry for Chrome/Brave/Firefox.
+5. Adds a PyDM shortcut to the Start Menu.
+6. Drops the browser extension `.zip` on your Desktop.
+
+### Connect the Browser (All Platforms)
 
 Once installed, PyDM will place a `pydm_extension.zip` file on your Desktop. 
 1. Open your browser and go to `chrome://extensions` or `brave://extensions`.
@@ -59,6 +75,8 @@ You're done! Your browser will now natively reroute all standard downloads direc
 ## 🛠️ Developer Setup (Manual)
 
 If you wish to modify the code or run PyDM manually from source:
+
+### Linux
 
 ```bash
 # 1. Clone the repository
@@ -75,6 +93,28 @@ bash ./native_host/install.sh
 
 # 4. Start the Application
 python3 -m pydm.main
+```
+
+### Windows
+
+```powershell
+# 1. Clone the repository
+git clone https://github.com/happy-fox-devs/pydm.git
+cd pydm
+
+# 2. Setup isolated environment
+python -m venv venv
+.\venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+
+# 3. Ensure aria2c and ffmpeg are in your PATH
+#    (install via winget, scoop, or download manually)
+
+# 4. Register Native Hooks locally
+powershell -ExecutionPolicy Bypass -File .\native_host\install.ps1
+
+# 5. Start the Application
+python -m pydm.main
 ```
 
 ## 🏗️ Architecture
