@@ -1,7 +1,6 @@
 """Settings dialog for PyDM."""
 
 import sys
-import os
 import logging
 
 from PyQt6.QtCore import Qt
@@ -14,8 +13,6 @@ from PyQt6.QtWidgets import (
     QComboBox,
     QPushButton,
     QGroupBox,
-    QFormLayout,
-    QMessageBox,
 )
 
 from pydm.utils.settings import SettingsManager
@@ -29,10 +26,9 @@ class SettingsDialog(QDialog):
     def __init__(self, settings: SettingsManager, parent=None):
         super().__init__(parent)
         self.settings = settings
-        self._needs_restart = False
 
         self.setWindowTitle("Settings — PyDM")
-        self.setFixedSize(440, 340)
+        self.setMinimumWidth(440)
         self.setWindowFlags(
             self.windowFlags() & ~Qt.WindowType.WindowContextHelpButtonHint
         )
@@ -47,41 +43,35 @@ class SettingsDialog(QDialog):
 
         # ── General section ──────────────────────────────────────────
         general_group = QGroupBox("General")
-        general_layout = QFormLayout(general_group)
-        general_layout.setSpacing(14)
-        general_layout.setContentsMargins(16, 24, 16, 16)
+        general_inner = QVBoxLayout(general_group)
+        general_inner.setSpacing(12)
+        general_inner.setContentsMargins(4, 4, 4, 4)
 
-        # Show console
-        self.console_check = QCheckBox("Show console window on startup")
-        self.console_check.setToolTip(
-            "Show the terminal/console when PyDM starts.\n"
-            "Requires restart to take effect."
-        )
-        general_layout.addRow(self.console_check)
-
-        # Start with OS
         self.autostart_check = QCheckBox("Start PyDM with Windows")
         if sys.platform != "win32":
             self.autostart_check.setText("Start PyDM on login")
         self.autostart_check.setToolTip(
             "Automatically launch PyDM when you log in."
         )
-        general_layout.addRow(self.autostart_check)
+        general_inner.addWidget(self.autostart_check)
 
         layout.addWidget(general_group)
 
         # ── Behavior section ─────────────────────────────────────────
         behavior_group = QGroupBox("Behavior")
-        behavior_layout = QFormLayout(behavior_group)
-        behavior_layout.setSpacing(14)
-        behavior_layout.setContentsMargins(16, 24, 16, 16)
+        behavior_inner = QVBoxLayout(behavior_group)
+        behavior_inner.setSpacing(10)
+        behavior_inner.setContentsMargins(4, 4, 4, 4)
 
-        # Close behavior
         close_label = QLabel("When closing the window:")
+        close_label.setMinimumHeight(20)
+        behavior_inner.addWidget(close_label)
+
         self.close_combo = QComboBox()
         self.close_combo.addItem("Minimize to system tray", "minimize_to_tray")
         self.close_combo.addItem("Close the application", "close")
-        behavior_layout.addRow(close_label, self.close_combo)
+        self.close_combo.setMinimumHeight(36)
+        behavior_inner.addWidget(self.close_combo)
 
         layout.addWidget(behavior_group)
 
@@ -105,9 +95,6 @@ class SettingsDialog(QDialog):
 
     def _load_current_settings(self):
         """Load current settings into the UI widgets."""
-        self.console_check.setChecked(
-            self.settings.get("show_console", False)
-        )
         self.autostart_check.setChecked(
             self.settings.get_autostart()
         )
@@ -119,37 +106,14 @@ class SettingsDialog(QDialog):
 
     def _on_save(self):
         """Save settings and close."""
-        old_console = self.settings.get("show_console", False)
-        new_console = self.console_check.isChecked()
-
-        # Save console preference
-        self.settings.set("show_console", new_console)
-
-        # Save close behavior
         self.settings.set(
             "close_behavior",
             self.close_combo.currentData()
         )
 
-        # Save autostart
         new_autostart = self.autostart_check.isChecked()
         old_autostart = self.settings.get_autostart()
         if new_autostart != old_autostart:
             self.settings.set_autostart(new_autostart)
 
-        # Check if restart is needed
-        if new_console != old_console:
-            self._needs_restart = True
-            QMessageBox.information(
-                self,
-                "Restart Required",
-                "PyDM needs to restart for the console setting to take effect.\n\n"
-                "Please restart the application manually.",
-            )
-
         self.accept()
-
-    @property
-    def needs_restart(self) -> bool:
-        """Whether the app needs a restart after saving."""
-        return self._needs_restart

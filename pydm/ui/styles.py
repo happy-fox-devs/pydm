@@ -411,7 +411,7 @@ QGroupBox::title {{
     subcontrol-origin: margin;
     subcontrol-position: top left;
     padding: 4px 12px;
-    background-color: {COLORS["bg_secondary"]};
+    background-color: {COLORS["bg_primary"]};
     border: 1px solid {COLORS["border"]};
     border-radius: 6px;
     color: {COLORS["accent"]};
@@ -444,8 +444,10 @@ QMenu#trayMenu {{
    ======================================== */
 QCheckBox {{
     color: {COLORS["text_primary"]};
-    spacing: 8px;
+    spacing: 10px;
     font-size: 13px;
+    padding: 4px 0;
+    min-height: 24px;
 }}
 
 QCheckBox::indicator {{
@@ -477,6 +479,7 @@ QComboBox {{
     padding: 8px 12px;
     font-size: 13px;
     min-width: 180px;
+    min-height: 32px;
 }}
 
 QComboBox:hover {{

@@ -49,7 +49,13 @@ class PyDMApp(QObject):
 
     def _load_fonts(self):
         """Try to load the Inter font from system or fallback."""
-        font = QFont("Inter", 10)
+        families = ["Inter", "Segoe UI", "Roboto", "sans-serif"]
+        font = QFont(families[0])
+        if font.exactMatch():
+            font.setPointSize(10)
+        else:
+            # Fallback to Segoe UI on Windows
+            font = QFont("Segoe UI", 10)
         font.setStyleStrategy(QFont.StyleStrategy.PreferAntialias)
         self.qt_app.setFont(font)
 

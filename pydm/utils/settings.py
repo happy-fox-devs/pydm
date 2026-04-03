@@ -143,15 +143,25 @@ class SettingsManager:
     # ── Python executable helpers ────────────────────────────────────
 
     def get_python_executable(self) -> str:
-        """Get the Python executable path, using pythonw on Windows when console is hidden."""
+        """Get the best Python executable for autostart / shortcuts.
+
+        Prefers the production install at %LOCALAPPDATA%\\pydm\\venv
+        with pythonw.exe (no console). Falls back to the current interpreter.
+        """
         if sys.platform == "win32":
-            python_dir = os.path.dirname(sys.executable)
-            show_console = self.get("show_console", False)
-            if show_console:
-                exe = os.path.join(python_dir, "python.exe")
-            else:
-                exe = os.path.join(python_dir, "pythonw.exe")
-            if os.path.exists(exe):
-                return exe
+            # Prefer production install
+            prod_pythonw = os.path.join(
+                os.environ.get("LOCALAPPDATA", ""),
+                "pydm", "venv", "Scripts", "pythonw.exe",
+            )
+            if os.path.exists(prod_pythonw):
+                return prod_pythonw
+
+            # Fall back to current venv's pythonw
+            current_dir = os.path.dirname(sys.executable)
+            pythonw = os.path.join(current_dir, "pythonw.exe")
+            if os.path.exists(pythonw):
+                return pythonw
+
         return sys.executable
 

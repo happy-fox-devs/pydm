@@ -245,17 +245,22 @@ else {
 
 $startMenuDir = Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs"
 $shortcutPath = Join-Path $startMenuDir "PyDM.lnk"
+
+# Use pythonw.exe (no console window) for the shortcut
+$pythonwExe = Join-Path $venvDir "Scripts\pythonw.exe"
+if (-not (Test-Path $pythonwExe)) { $pythonwExe = $pythonExe }
+
 try {
     $shell = New-Object -ComObject WScript.Shell
     $shortcut = $shell.CreateShortcut($shortcutPath)
-    $shortcut.TargetPath = $pythonExe
+    $shortcut.TargetPath = $pythonwExe
     $shortcut.Arguments = "-m pydm.main"
     $shortcut.WorkingDirectory = $INSTALL_DIR
     $iconPath = Join-Path $INSTALL_DIR "assets\icon.ico"
     if (Test-Path $iconPath) { $shortcut.IconLocation = $iconPath }
     $shortcut.Description = "PyDM - Python Download Manager"
     $shortcut.Save()
-    Write-Host "  [OK] Start Menu shortcut created" -ForegroundColor Green
+    Write-Host "  [OK] Start Menu shortcut created (using pythonw, no console)" -ForegroundColor Green
 }
 catch {
     Write-Host "  [WARNING] Could not create Start Menu shortcut: $_" -ForegroundColor Yellow
