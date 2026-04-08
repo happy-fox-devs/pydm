@@ -145,7 +145,7 @@ Write-Step "2/5" "Deploying PyDM to $INSTALL_DIR..."
 New-Item -ItemType Directory -Path $INSTALL_DIR -Force | Out-Null
 
 # Check if we're running from within the project source
-if (Test-Path (Join-Path $PSScriptRoot "pydm\main.py")) {
+if ($PSScriptRoot -and (Test-Path (Join-Path $PSScriptRoot "pydm\main.py"))) {
     Write-Host "  Copying local files..."
     $source = $PSScriptRoot
     # Copy everything except .git and venv
