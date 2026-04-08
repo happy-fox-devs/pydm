@@ -166,7 +166,7 @@ function shouldCaptureUrl(url, filename) {
 // -------------------------------------------------------------------
 
 chrome.downloads.onDeterminingFilename.addListener((downloadItem, suggest) => {
-  const url = downloadItem.url || "";
+  const url = downloadItem.finalUrl || downloadItem.url || "";
   const filename = downloadItem.filename || "";
 
   if (!shouldCaptureUrl(url, filename)) {
