@@ -515,6 +515,7 @@ STATUS_COLORS = {
     "error": COLORS["error"],
     "complete": COLORS["success"],
     "removed": COLORS["text_muted"],
+    "missing": COLORS["warning"],
 }
 
 # Status display text
@@ -525,4 +526,5 @@ STATUS_TEXT = {
     "error": "❌ Error",
     "complete": "✅ Completed",
     "removed": "🗑 Removed",
+    "missing": "❓ Missing",
 }

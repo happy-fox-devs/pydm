@@ -67,35 +67,65 @@ class DownloadMonitor(QThread):
                             remaining = dl.total_length - dl.completed_length
                             eta = remaining / dl.download_speed
 
+                        # Extract the original URI for fallback purposes
+                        download_uri = ""
+                        try:
+                            uris = dl.files[0].uris if dl.files else []
+                            if uris:
+                                download_uri = uris[0].get("uri", "") if isinstance(uris[0], dict) else str(uris[0])
+                        except Exception:
+                            pass
+
                         # Extract a reasonable display name
                         display_name = dl.name or ""
-                        # If aria2 returned something like "https:" (just the scheme),
-                        # try to get a better name from the URI
-                        if not display_name or display_name.endswith(":") or len(display_name) < 3:
-                            try:
-                                from urllib.parse import urlparse, unquote
-                                uris = dl.files[0].uris if dl.files else []
-                                if uris:
-                                    uri = uris[0].get("uri", "") if isinstance(uris[0], dict) else str(uris[0])
-                                    parsed = urlparse(uri)
+                        # Reject names that are URLs, too short, or just a scheme
+                        if not display_name or "://" in display_name or display_name.endswith(":") or len(display_name) < 3:
+                            if download_uri:
+                                try:
+                                    from urllib.parse import urlparse, unquote
+                                    parsed = urlparse(download_uri)
                                     path_name = unquote(parsed.path.rstrip("/").split("/")[-1])
+                                    # Strip query params from filename
+                                    path_name = path_name.split("?")[0]
                                     if path_name and "." in path_name:
                                         display_name = path_name
+                                except Exception:
+                                    pass
+                        if not display_name or "://" in display_name or display_name.endswith(":"):
+                            display_name = "Unknown"
+
+                        status = dl.status
+                        
+                        # Check if completed file still exists
+                        if status == "complete" and dl.files:
+                            try:
+                                import os
+                                # Getting the first file path natively
+                                file_path = str(dl.files[0].path)
+                                
+                                # Clean up .aria2 file that is kept by force-save
+                                aria2_path = file_path + ".aria2"
+                                if os.path.exists(aria2_path):
+                                    try:
+                                        os.remove(aria2_path)
+                                    except OSError:
+                                        pass
+                                
+                                if file_path and not os.path.exists(file_path):
+                                    status = "missing"
                             except Exception:
                                 pass
-                        if not display_name or display_name.endswith(":"):
-                            display_name = "Unknown"
 
                         info = DownloadInfo(
                             gid=dl.gid,
                             name=display_name,
-                            url=uri,
+                            url=download_uri,
                             total_size=dl.total_length,
                             completed_size=dl.completed_length,
                             progress=dl.progress,
                             download_speed=dl.download_speed,
                             upload_speed=dl.upload_speed,
-                            status=dl.status,
+                            status=status,
                             eta=eta,
                             connections=dl.connections,
                             dir=dl.dir.as_posix() if hasattr(dl.dir, "as_posix") else str(dl.dir),

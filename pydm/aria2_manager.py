@@ -158,6 +158,14 @@ class Aria2Manager:
         # falloc is not supported on NTFS (Windows)
         file_alloc = "none" if IS_WINDOWS else "falloc"
 
+        # Configure session saving
+        session_file = os.path.join(self.settings.config_dir, "aria2.session")
+        if not os.path.exists(session_file):
+            try:
+                open(session_file, 'a').close()
+            except OSError:
+                pass
+
         cmd = [
             "aria2c",
             "--enable-rpc",
@@ -177,6 +185,11 @@ class Aria2Manager:
             "--disk-cache=64M",
             "--max-overall-download-limit=0",
             "--max-download-limit=0",
+            f"--save-session={session_file}",
+            f"--input-file={session_file}",
+            "--save-session-interval=10",
+            "--force-save=true",
+            "--max-download-result=500",
         ]
 
         try:
@@ -211,6 +224,14 @@ class Aria2Manager:
         """Stop the aria2c daemon process."""
         if self._process is not None:
             try:
+                # Force save session before terminating since Windows terminate() is forceful
+                if self._api:
+                    try:
+                        self._api.client.save_session()
+                        logger.info("aria2c session saved successfully")
+                    except Exception as e:
+                        logger.warning("Failed to save aria2c session: %s", e)
+
                 self._process.terminate()
                 self._process.wait(timeout=5)
             except subprocess.TimeoutExpired:
@@ -254,7 +275,9 @@ class Aria2Manager:
         }
 
         # Determine filename: use provided, extract from URL, or generate fallback
-        if filename:
+        # Reject filenames that look like URLs (some browsers report the referrer
+        # page URL as the filename for certain downloads)
+        if filename and "://" not in filename:
             options["out"] = filename
         else:
             extracted = self._extract_filename_from_url(url)
@@ -276,9 +299,16 @@ class Aria2Manager:
         if max_connections:
             options["max-connection-per-server"] = str(max_connections)
             options["split"] = str(max_connections)
-        if referer:
+        # Detect if URL has a self-contained auth token in query string.
+        # CDNs with verify tokens reject requests that also include browser
+        # cookies/referer (session mismatch), so we skip those headers.
+        from urllib.parse import urlparse, parse_qs
+        qs = parse_qs(urlparse(url).query)
+        has_token = any(k in qs for k in ("verify", "token", "key", "auth", "sig", "signature", "hash"))
+
+        if referer and not has_token:
             options["referer"] = referer
-        if cookies:
+        if cookies and not has_token:
             options["header"] = f"Cookie: {cookies}"
 
         try:

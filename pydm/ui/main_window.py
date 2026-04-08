@@ -23,6 +23,7 @@ from PyQt6.QtWidgets import (
     QMenu,
     QSystemTrayIcon,
     QApplication,
+    QCheckBox,
 )
 
 from pydm.aria2_manager import Aria2Manager
@@ -129,11 +130,17 @@ class MainWindow(QMainWindow):
 
         toolbar.addSeparator()
 
-        # Clear completed
+        # Clear errors/missing
         self.action_clear = QAction("🧹  Clear", self)
-        self.action_clear.setToolTip("Clear completed downloads")
-        self.action_clear.triggered.connect(self._on_clear_completed)
+        self.action_clear.setToolTip("Clear missing and error downloads")
+        self.action_clear.triggered.connect(self._on_clear_errors)
         toolbar.addAction(self.action_clear)
+
+        # Clear all
+        self.action_clear_all = QAction("✨  Clear All", self)
+        self.action_clear_all.setToolTip("Clear all inactive downloads (Completed, Missing, Error)")
+        self.action_clear_all.triggered.connect(self._on_clear_all)
+        toolbar.addAction(self.action_clear_all)
 
         # Spacer to push Settings to the right
         spacer = QWidget()
@@ -274,6 +281,7 @@ class MainWindow(QMainWindow):
             if info.status == "error" and old_status != "error":
                 if info.url and info.url.startswith("http"):
                     logger.info(f"Download error, auto-fallback to browser: {info.url}")
+                    logger.info(f"Error message: {info.error_message}")
                     import webbrowser
                     webbrowser.open(info.url)
             
@@ -485,9 +493,11 @@ class MainWindow(QMainWindow):
             parent=self,
         )
         dialog.set_url(url)
+        # Sanitize filename: some browsers report the referrer URL as filename
+        if filename and "://" in filename:
+            filename = ""
         if filename:
             dialog.filename_input.setText(filename)
-            # The dialog will respond to textChanged and compute category automatically
         if dialog.exec():
             info = dialog.get_download_info()
             custom_dir = info["directory"]
@@ -544,38 +554,127 @@ class MainWindow(QMainWindow):
                 self.ytdlp_manager.resume_download(gid)
 
     def _on_remove(self):
-        """Remove the selected download."""
+        """Remove the selected download and optionally delete its file."""
         gid = self._get_selected_gid()
         if not gid:
             return
 
-        reply = QMessageBox.question(
-            self,
-            "Confirm Deletion",
-            "Are you sure you want to delete this download?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No,
-        )
-        if reply == QMessageBox.StandardButton.Yes:
-            if not self.aria2_manager.remove_download(gid, force=True):
-                self.ytdlp_manager.remove_download(gid)
+        is_complete = self._previous_states.get(gid) in ("complete", "missing")
+        file_path = None
+        if is_complete:
+            # Try to figure out file path to offer deletion
+            try:
+                dl = self.aria2_manager.api.get_download(gid)
+                if dl and dl.files:
+                    path = str(dl.files[0].path)
+                    import os
+                    if os.path.exists(path):
+                        file_path = path
+            except Exception:
+                pass
 
-    def _on_clear_completed(self):
-        """Remove all completed downloads from the list."""
-        try:
-            # Clear aria2c completes
-            downloads = self.aria2_manager.get_downloads()
-            for dl in downloads:
-                if dl.status == "complete":
-                    self.aria2_manager.remove_download(dl.gid)
+        if file_path:
+            behavior = self.settings.get("delete_file_behavior", "ask")
+            if behavior == "ask":
+                msg = QMessageBox(self)
+                msg.setWindowTitle("Confirm Deletion")
+                msg.setText("Do you want to remove this download from the list?")
+                msg.setInformativeText("You can also remove the downloaded file from your PC.")
+                
+                keep_btn = msg.addButton("Keep file", QMessageBox.ButtonRole.AcceptRole)
+                trash_btn = msg.addButton("Move to Trash", QMessageBox.ButtonRole.DestructiveRole)
+                delete_btn = msg.addButton("Delete Permanently", QMessageBox.ButtonRole.DestructiveRole)
+                cancel_btn = msg.addButton("Cancel", QMessageBox.ButtonRole.RejectRole)
+                
+                check = QCheckBox("Remember my choice")
+                msg.setCheckBox(check)
+                msg.setDefaultButton(keep_btn)
+                msg.exec()
+
+                clicked = msg.clickedButton()
+                if clicked == cancel_btn:
+                    return
+                
+                if check.isChecked():
+                    if clicked == keep_btn: self.settings.set("delete_file_behavior", "keep")
+                    elif clicked == trash_btn: self.settings.set("delete_file_behavior", "trash")
+                    elif clicked == delete_btn: self.settings.set("delete_file_behavior", "delete")
+
+                self._execute_removal(gid, file_path, action="keep" if clicked == keep_btn else "trash" if clicked == trash_btn else "delete")
+            else:
+                self._execute_removal(gid, file_path, action=behavior)
+        else:
+            # Not complete or file doesn't exist, just confirm list removal
+            reply = QMessageBox.question(
+                self,
+                "Confirm Deletion",
+                "Are you sure you want to delete this download?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
+            )
+            if reply == QMessageBox.StandardButton.Yes:
+                self._execute_removal(gid, None, "keep")
+
+    def _execute_removal(self, gid: str, file_path: str | None, action: str):
+        """Execute the removal from memory and file deletion if applicable."""
+        # Remove from list
+        if not self.aria2_manager.remove_download(gid, force=True):
+            self.ytdlp_manager.remove_download(gid)
+
+        # Delete file
+        if file_path and action in ("trash", "delete"):
+            import os
+            import time
             
-            # Clear yt-dlp completes
-            vt_dl = self.ytdlp_manager.get_downloads()
-            for dl in vt_dl:
-                if dl.status == "complete":
-                    self.ytdlp_manager.remove_download(dl.gid)
+            aria2_path = file_path + ".aria2"
+
+            def _delete_file(path_to_delete):
+                if not os.path.exists(path_to_delete):
+                    return
+                for _ in range(10):  # Retry up to 1 second
+                    try:
+                        if action == "trash":
+                            try:
+                                from send2trash import send2trash
+                                send2trash(path_to_delete)
+                            except ImportError:
+                                os.remove(path_to_delete)
+                        else:
+                            os.remove(path_to_delete)
+                        break
+                    except OSError:
+                        time.sleep(0.1)
+                else:
+                    logger.error("Failed to delete file after retries: %s", path_to_delete)
+
+            _delete_file(file_path)
+            
+            # Also clean up the aria2 control file if it was left behind
+            if os.path.exists(aria2_path):
+                try:
+                    os.remove(aria2_path)
+                except OSError:
+                    pass
+
+    def _on_clear_errors(self):
+        """Remove missing and error downloads from the list."""
+        try:
+            for gid, status in list(self._previous_states.items()):
+                if status in ("error", "missing"):
+                    self.aria2_manager.remove_download(gid)
+                    self.ytdlp_manager.remove_download(gid)
         except Exception as e:
-            logger.error("Failed to clear completed: %s", e)
+            logger.error("Failed to clear errors: %s", e)
+
+    def _on_clear_all(self):
+        """Remove ALL inactive downloads from the list."""
+        try:
+            for gid, status in list(self._previous_states.items()):
+                if status in ("error", "missing", "complete", "removed"):
+                    self.aria2_manager.remove_download(gid)
+                    self.ytdlp_manager.remove_download(gid)
+        except Exception as e:
+            logger.error("Failed to clear all inactive: %s", e)
 
     def _show_context_menu(self, pos):
         """Show right-click context menu on the table."""

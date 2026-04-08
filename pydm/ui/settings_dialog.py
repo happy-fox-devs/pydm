@@ -73,6 +73,18 @@ class SettingsDialog(QDialog):
         self.close_combo.setMinimumHeight(36)
         behavior_inner.addWidget(self.close_combo)
 
+        delete_label = QLabel("When removing completed downloads:")
+        delete_label.setMinimumHeight(20)
+        behavior_inner.addWidget(delete_label)
+
+        self.delete_combo = QComboBox()
+        self.delete_combo.addItem("Ask me every time", "ask")
+        self.delete_combo.addItem("Move file to Recycle Bin/Trash", "trash")
+        self.delete_combo.addItem("Delete file permanently", "delete")
+        self.delete_combo.addItem("Keep file on disk", "keep")
+        self.delete_combo.setMinimumHeight(36)
+        behavior_inner.addWidget(self.delete_combo)
+
         layout.addWidget(behavior_group)
 
         # ── Spacer ───────────────────────────────────────────────────
@@ -104,11 +116,20 @@ class SettingsDialog(QDialog):
         if idx >= 0:
             self.close_combo.setCurrentIndex(idx)
 
+        delete_behavior = self.settings.get("delete_file_behavior", "ask")
+        idx_del = self.delete_combo.findData(delete_behavior)
+        if idx_del >= 0:
+            self.delete_combo.setCurrentIndex(idx_del)
+
     def _on_save(self):
         """Save settings and close."""
         self.settings.set(
             "close_behavior",
             self.close_combo.currentData()
+        )
+        self.settings.set(
+            "delete_file_behavior",
+            self.delete_combo.currentData()
         )
 
         new_autostart = self.autostart_check.isChecked()
