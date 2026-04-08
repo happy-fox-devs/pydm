@@ -190,7 +190,50 @@ class AddDownloadDialog(QDialog):
         self._directory = self.dir_input.text().strip()
         self._filename = self.filename_input.text().strip()
         self._max_connections = self.connections_spin.value()
-        
+
+        # If no explicit filename, extract from URL for the existence check
+        check_filename = self._filename
+        if not check_filename:
+            try:
+                parsed = urllib.parse.urlparse(url)
+                check_filename = urllib.parse.unquote(parsed.path.rstrip("/").split("/")[-1])
+                check_filename = check_filename.split("?")[0]
+            except Exception:
+                check_filename = ""
+
+        # Check if file already exists
+        if check_filename and self._directory:
+            target_path = os.path.join(self._directory, check_filename)
+            if os.path.exists(target_path):
+                from PyQt6.QtWidgets import QMessageBox
+                msg = QMessageBox(self)
+                msg.setWindowTitle("File already exists")
+                msg.setText(f"'{check_filename}' already exists in the download folder.")
+                msg.setInformativeText("What would you like to do?")
+                overwrite_btn = msg.addButton("Overwrite", QMessageBox.ButtonRole.DestructiveRole)
+                duplicate_btn = msg.addButton("Duplicate", QMessageBox.ButtonRole.AcceptRole)
+                cancel_btn = msg.addButton("Cancel", QMessageBox.ButtonRole.RejectRole)
+                msg.setDefaultButton(duplicate_btn)
+                msg.exec()
+
+                clicked = msg.clickedButton()
+                if clicked == cancel_btn:
+                    return
+                elif clicked == duplicate_btn:
+                    # Find next available name: file (1).ext, file (2).ext, ...
+                    base, ext = os.path.splitext(check_filename)
+                    counter = 1
+                    while os.path.exists(os.path.join(self._directory, f"{base} ({counter}){ext}")):
+                        counter += 1
+                    self._filename = f"{base} ({counter}){ext}"
+                elif clicked == overwrite_btn:
+                    # Remove existing file so aria2c can write to it
+                    try:
+                        os.remove(target_path)
+                    except OSError:
+                        pass
+                    self._filename = check_filename
+
         # Save custom category path if user requested it
         if self.save_category_cb.isChecked() and self.user_changed_dir:
             self.settings.set_category_path(self.current_category, self._directory)
